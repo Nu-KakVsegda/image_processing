@@ -1,0 +1,418 @@
+#include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include<vector>
+#include<algorithm>
+#include<string>
+using namespace std;
+using namespace cv;
+Mat img, tmpImg;
+int k = 0;
+int s = 0;
+vector <int> b;
+vector <int> b1;
+Point selection_start, selection_end;
+bool is_dragging = false;
+void mousecallback(int event, int x, int y, int flags, void* userdata)
+{
+    Mat* image = static_cast<Mat*>(userdata);
+    if (event == EVENT_LBUTTONDOWN) //запоминаем начальные координаты прямоугольной области
+    {
+        
+        selection_start = Point(x + s, y + s);
+        is_dragging = true;
+    }
+    else if (event == EVENT_LBUTTONUP) //завершаем выбор прямоугольной области
+    {
+        
+        selection_end = Point(x - s, y - s);
+        is_dragging = false;
+
+        
+        Rect roi_rect(selection_start, selection_end);//вырезаем выбранную область изображения
+        Mat roi = (*image)(roi_rect);
+        namedWindow("roi");//создаем новое окно и выводим вырезанный участок
+        imshow("roi", roi);
+       
+        rectangle(tmpImg, Point(x - s, y - s), Point(x + s, y + s), Scalar(255, 255, 255), FILLED,0);
+        
+        
+        
+        imshow("Paint_img", tmpImg);
+    }
+}
+void on_mouse(int EVENT, int x, int y, int flags, void* ustc)
+{
+    switch (EVENT)
+    {
+    
+    case EVENT_LBUTTONDOWN:
+    {
+        rectangle(tmpImg, Point(x-s,y-s), Point(x + s,y + s),  Scalar(255, 255, 255), FILLED, 0);
+        imshow("Paint_img", tmpImg);
+    }
+    break; }
+    
+
+        
+
+}
+Mat img3(245, 268, CV_8UC3, Scalar(255, 255, 255));
+
+void on_mouse1(int EVENT, int x, int y, int flags, void* ustc)
+{
+
+    switch (EVENT)
+    {
+    case EVENT_LBUTTONDOWN:
+    {
+        b.push_back(x);
+        b.push_back(y);
+
+        break;
+    }
+    case EVENT_LBUTTONUP:
+    {
+
+        b1.push_back(x);
+        b1.push_back(y);
+        vector<Mat> channels{};
+        split(tmpImg, channels);
+        vector<Mat> channels1{};
+        split(img3, channels1);
+        for (int i = b[b.size() - 2], i1 = 0; i < x; i++, i1++) {
+            for (int j = b[b.size() - 1], j1 = 0; j < y; j++, j1++) {
+
+                channels1.at(0).at<uchar>(j1, i1) = channels.at(0).at<uchar>(j, i);
+                channels1.at(1).at<uchar>(j1, i1) = channels.at(1).at<uchar>(j, i);
+                channels1.at(2).at<uchar>(j1, i1) = channels.at(2).at<uchar>(j, i);
+
+                channels.at(0).at<uchar>(j, i) = 255;
+                channels.at(1).at<uchar>(j, i) = 255;
+                channels.at(2).at<uchar>(j, i) = 255;
+            }
+        }
+        merge(channels, tmpImg);
+        imshow("Paint_img", tmpImg);
+        merge(channels1, img3);
+        break;
+    }
+    case EVENT_RBUTTONDOWN: {
+
+        vector<Mat> channels{};
+        split(tmpImg, channels);
+        vector<Mat> channels1{};
+        split(img3, channels1);
+        for (int i = x, i1 = 0; i < (x + b1[b1.size() - 2] - b[b.size() - 2]); i++, i1++) {
+            for (int j = y, j1 = 0; j < (y + b1[b1.size() - 1] - b[b.size() - 1]); j++, j1++) {
+                channels.at(0).at<uchar>(j, i) = channels1.at(0).at<uchar>(j1, i1);
+                channels.at(1).at<uchar>(j, i) = channels1.at(1).at<uchar>(j1, i1);
+                channels.at(2).at<uchar>(j, i) = channels1.at(2).at<uchar>(j1, i1);
+            }
+        }
+        merge(channels, tmpImg);
+        imshow("Paint_img", tmpImg);
+        break;
+    }
+    }
+}
+
+
+
+int main()
+{
+    setlocale(LC_ALL, "rus");
+    int n;
+    cout << "Выберите фильтр: " << endl;
+    cout << "0. Перемещение   прямоугольной области" << endl;//
+    cout << "1. Вырез участка изображения" << endl;//
+    cout << "2. Увеличение масштаба по вертикали" << endl;//
+    cout << "3. СОЛЯРИЗАЦИЯ" << endl;
+    cout << "31. СОЛЯРИЗАЦИЯ полутонового изображения" << endl;
+    cout << "4. Линейная растяжка гистограммы" << endl;//
+    cout << "5. Пороговая сегментация" << endl;
+    cout << "Введите номер фильтра" << endl;
+    cin >> n;
+    switch (n)
+    {
+    case 0:
+    {
+        img = imread("18.jpg");
+        tmpImg = img.clone();
+        imshow("Paint_img", tmpImg);
+        while (true)
+        {
+            setMouseCallback("Paint_img", on_mouse1, (void*)(&tmpImg)); // Вызов функции  обратного вызова
+            waitKey(0);
+        }
+        destroyWindow("Paint_img");
+        break;
+    }
+    case 1:
+    {
+        img = imread("18.bmp");
+        tmpImg = img.clone();
+        imshow("Paint_img", tmpImg);
+        createTrackbar("Размер ластика", "Paint_img", &s, 100);
+        while (true)
+        {
+            setMouseCallback("Paint_img", mousecallback, (void*)(&tmpImg)); // Вызов функции  обратного вызова
+            waitKey(0);
+        }
+        destroyWindow("Paint_img");
+        break;
+    }
+
+    case 2:
+    {
+        img = imread("18.bmp");
+        tmpImg = img.clone();
+        Mat img1;
+        int k = 1;
+        namedWindow("Увеличение", WINDOW_AUTOSIZE);
+        createTrackbar("Кратность", "Увеличение", &k, 10);
+        while (true)
+        {
+            if (k >= 1) {
+                resize(tmpImg, img1, Size(), 1, k);
+                imshow("Увеличение", img1);
+                waitKey(1);
+            }
+            else break;
+        }
+        break;
+    }
+
+    case 3:
+    {
+        Mat  img1;
+        img = imread("18.bmp");
+        namedWindow("Trackbars");
+        int q11 = 10, q1m = 55, q12 = 10, q2m = 55, q13 = 10, q3m = 55;
+
+        createTrackbar("q11", "Trackbars", &q11, 255);
+        createTrackbar("q1m", "Trackbars", &q1m, 255);
+        createTrackbar("q12", "Trackbars", &q12, 255);
+        createTrackbar("qm2", "Trackbars", &q2m, 255);
+        createTrackbar("q13", "Trackbars", &q13, 255);
+        createTrackbar("qm3", "Trackbars", &q3m, 255);
+
+        while (true)
+        {
+            int m1 = 0, m2 = 0, m3 = 0;
+            img1 = img.clone();
+            vector<Mat> channels{};
+            split(img1, channels);
+            int k1 = q1m / q11;
+            int k2 = q2m / q12;
+            int k3 = q3m / q13;
+            int k11 = 0, k22 = 0, k33 = 0;
+            for (int i = 0; i < img1.rows; i++)
+            {
+                for (int j = 0; j < img1.cols; j++)
+                {
+
+                    if (channels.at(0).at<uchar>(i, j) > m1) m1 = channels.at(0).at<uchar>(i, j);
+                    if (channels.at(0).at<uchar>(i, j) > m2) m1 = channels.at(1).at<uchar>(i, j);
+                    if (channels.at(0).at<uchar>(i, j) > m3) m1 = channels.at(2).at<uchar>(i, j);
+                }
+            }
+            if (m1 - q11 > 0 && m2 - q12 > 0 && m3 - q13 > 0)
+            {
+                k11 = (q1m - (q1m * q11 / m1) - m1 + q11) / (m1 - q11);
+                k22 = (q2m - (q2m * q12 / m2) - m2 + q12) / (m2 - q12);
+                k33 = (q1m - (q3m * q13 / m3) - m3 + q13) / (m3 - q13);
+            }
+            for (int i = 0; i < img1.rows; i++)
+            {
+                for (int j = 0; j < img1.cols; j++)
+                {
+                    if (channels.at(0).at<uchar>(i, j) < q11)
+                    {
+                        channels.at(0).at<uchar>(i, j) = channels.at(0).at<uchar>(i, j) * k1;
+                    }
+
+                    if (channels.at(1).at<uchar>(i, j) < q12)
+                    {
+                        channels.at(1).at<uchar>(i, j) = channels.at(1).at<uchar>(i, j) * k2;
+                    }
+                    if (channels.at(2).at<uchar>(i, j) < q13)
+                    {
+                        channels.at(2).at<uchar>(i, j) = channels.at(2).at<uchar>(i, j) * k3;
+                    }
+
+                    if (channels.at(0).at<uchar>(i, j) >= q11)
+                    {
+                        channels.at(0).at<uchar>(i, j) = q1m - channels.at(0).at<uchar>(i, j) * k11;
+                    }
+
+                    if (channels.at(1).at<uchar>(i, j) >= q12)
+                    {
+                        channels.at(1).at<uchar>(i, j) = q2m - channels.at(1).at<uchar>(i, j) * k22;
+                    }
+                    if (channels.at(2).at<uchar>(i, j) >= q13)
+                    {
+                        channels.at(2).at<uchar>(i, j) = q3m - channels.at(2).at<uchar>(i, j) * k33;
+                    }
+                }
+            }
+            merge(channels, img1);
+            imshow("Trackbars", img1);
+            waitKey(1);
+        }
+    }
+
+
+    case 31:
+    {
+        Mat  img1;
+        img = imread("38.bmp");
+        namedWindow("Trackbars");
+        int q11 = 10, q1m = 55;
+        createTrackbar("q11", "Trackbars", &q11, 255);
+        createTrackbar("q1m", "Trackbars", &q1m, 255);
+        while (true)
+        {
+            int m1 = 0;
+            img1 = img.clone();
+            cvtColor(img1, img1, COLOR_BGR2GRAY);
+            int k1 =q1m / q11;
+            int k11 = 0;
+            for (int i = 0; i < img1.rows; i++)
+            {
+                for (int j = 0; j < img1.cols; j++)
+                {
+                    if (img1.at<uchar>(i, j) > m1) m1 = img1.at<uchar>(i, j);
+                }
+            }
+            if (m1 - q11 > 0)
+            {
+                k11 = (q1m - (q1m * q11 / m1) - m1 + q11) / (m1 - q11);
+
+            }
+            
+            
+            for (int i = 0; i < img1.rows; i++)
+            {
+                for (int j = 0; j < img1.cols; j++)
+                {
+                    if (img1.at<uchar>(i, j) < q11)
+                    {
+                        img1.at<uchar>(i, j) = img1.at<uchar>(i, j) * k1;
+                    }
+                    if (img1.at<uchar>(i, j) >= q11)
+                    {
+                        img1.at<uchar>(i, j) = q1m - img1.at<uchar>(i, j) ;
+                    }
+                }
+            }
+            imshow("Trackbars", img1);
+            waitKey(1);
+        }
+    }
+    case 4:
+    {
+        Mat img1, img2, img4;
+        img = imread("18.bmp");
+        imshow("Hist0", img);
+        Mat hist;
+        img1 = img.clone();
+        img4 = img.clone();
+        img2 = img.clone();
+        cvtColor(img1, img1, COLOR_BGR2GRAY);
+        cvtColor(img2, img2, COLOR_BGR2GRAY);
+        cvtColor(img4, img4, COLOR_BGR2GRAY);
+        equalizeHist(img1, img1);
+        int channels[] = { 0 };
+        int histSize[] = { 256 };
+        float hr1[] = { 0,255 };
+        const float* ranges[] = { hr1 };
+        calcHist(&img1, 1, channels, Mat(), hist, 1, histSize, ranges, true, false);
+        Mat histimg(720, 1280, CV_8UC3, Scalar(0, 0, 0));
+        for (int i = 0, j = 0; i < 256; i++, j += 3)
+        {
+            line(histimg, Point(j, 720), Point(j, 720 - (cvRound(hist.at<float>(i))) / 10), Scalar(255, 255, 255), 1, LINE_AA);
+            line(histimg, Point(j + 1, 720), Point(j + 1, 720 - (cvRound(hist.at<float>(i))) / 10), Scalar(255, 255, 255), 1, LINE_AA);
+            line(histimg, Point(j + 2, 720), Point(j + 2, 720 - (cvRound(hist.at<float>(i))) / 10), Scalar(255, 255, 255), 1, LINE_AA);
+        }
+        imshow("Hist", histimg);
+        imshow("Hist1", img1);
+
+        int ma = 0, mi = 255;
+
+        for (int i = 0; i < img1.rows; i++)
+        {
+            for (int j = 0; j < img1.cols; j++)
+            {
+                if (img2.at<uchar>(i, j) > ma) ma = img2.at<uchar>(i, j);
+                if (img2.at<uchar>(i, j) < mi) mi = img2.at<uchar>(i, j);
+
+            }
+        }
+
+        double b = 255 / (ma - mi);
+        double a = -b * mi;
+
+        for (int i = 0; i < img1.rows; i++)
+        {
+            for (int j = 0; j < img1.cols; j++)
+            {
+                img4.at<uchar>(i, j) = a + img2.at<uchar>(i, j) * b;
+            }
+        }
+        imshow("Hist3", img4);
+        waitKey(0);
+        break;
+    }
+
+    case 5:
+    {
+        img = imread("19.bmp");
+        int hue_min = 0, hue_max = 0, saturation_min = 0, saturation_max = 0, value_min = 0, value_max = 0;
+        namedWindow("цвет", WINDOW_AUTOSIZE);
+        createTrackbar("h_min", "цвет", &hue_min, 1000);
+        createTrackbar("h_max", "цвет", &hue_max, 1000);
+        createTrackbar("s_min", "цвет", &saturation_min, 1000);
+        createTrackbar("s_max", "цвет", &saturation_max, 1000);
+        createTrackbar("v_min", "цвет", &value_min, 1000);
+        createTrackbar("v_max", "цвет", &value_max, 1000);
+        while (true)
+        {
+            Mat img1;
+            img1 = img.clone();
+            cvtColor(img1, img1, COLOR_BGR2HSV);
+            vector<Mat> channels{};
+            split(img1, channels);
+            for (int i = 0; i < img1.rows; i++)
+            {
+                for (int j = 0; j < img1.cols; j++)
+                {
+                    if (channels.at(0).at<uchar>(i, j) > hue_min && channels.at(0).at<uchar>(i, j) < hue_max &&
+                        channels.at(1).at<uchar>(i, j) > saturation_min && channels.at(1).at<uchar>(i, j) < saturation_max &&
+                        channels.at(2).at<uchar>(i, j) > value_min && channels.at(2).at<uchar>(i, j) < value_max)
+                    {
+                        channels.at(0).at<uchar>(i, j) = 29;
+                        channels.at(1).at<uchar>(i, j) = 61;
+                        channels.at(2).at<uchar>(i, j) = 96;
+
+                    }
+                    else {
+                        channels.at(0).at<uchar>(i, j) = 0;
+                        channels.at(1).at<uchar>(i, j) = 0;
+                        channels.at(2).at<uchar>(i, j) = 0;
+                    }
+                }
+
+
+            }
+            merge(channels, img1);
+            imshow("цвет", img1);
+            waitKey(1);
+
+        }
+        break;
+    }
+
+    }
+}
